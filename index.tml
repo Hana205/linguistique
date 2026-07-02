@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Jouet de langues</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FBF4E9;
+    --ink: #2B2440;
+    --coral: #FF6F59;
+    --sun: #FFC93C;
+    --teal: #2AA198;
+    --lavender: #9B8CE0;
+    --zh: #E9564B;
+    --ar: #1E9E8B;
+    --en: #3D7BE0;
+    --radius: 22px;
+    --shadow: 0 8px 0 rgba(43,36,64,0.12);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--cream);
+    background-image:
+      radial-gradient(circle at 10% 10%, rgba(255,201,60,0.25) 0, transparent 40%),
+      radial-gradient(circle at 90% 20%, rgba(155,140,224,0.25) 0, transparent 40%);
+    font-family: 'Nunito', sans-serif;
+    color: var(--ink);
+    padding: 20px 16px 60px;
+  }
+  h1 {
+    font-family: 'Baloo 2', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    text-align: center;
+    margin: 4px 0 2px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: #6b6280;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    border: 2px solid var(--ink);
+    margin-bottom: 16px;
+  }
+  .lang-row, .mode-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .pill {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 2px solid var(--ink);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  .pill:active { transform: scale(0.96); }
+  .pill.active[data-lang="zh"] { background: var(--zh); color: #fff; }
+  .pill.active[data-lang="ar"] { background: var(--ar); color: #fff; }
+  .pill.active[data-lang="en"] { background: var(--en); color: #fff; }
+  .pill.active[data-mode] { background: var(--lavender); color: #fff; }
+
+  .mic-zone { text-align: center; padding: 10px 0 4px; }
+  #micButton {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    border: 3px solid var(--ink);
+    background: var(--coral);
+    color: #fff;
+    font-size: 38px;
+    box-shadow: 0 6px 0 rgba(43,36,64,0.25);
+    cursor: pointer;
+  }
+  #micButton.recording {
+    background: var(--sun);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 6px 0 rgba(43,36,64,0.25); }
+    50% { box-shadow: 0 6px 0 rgba(43,36,64,0.25), 0 0 0 10px rgba(255,201,60,0.3); }
+  }
+  .mic-label { margin-top: 10px; font-weight: 700; font-size: 13px; color: #6b6280; }
+
+  .status-box {
+    min-height: 60px;
+    font-size: 16px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .status-box .fr { color: #6b6280; }
+  .status-box .target { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 20px; }
+  .hint { font-size: 13px; color: var(--teal); margin-top: 4px; }
+
+  #lessonButton, .quiz-option {
+    width: 100%;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 14px;
+    border-radius: 16px;
+    border: 2px solid var(--ink);
+    background: var(--sun);
+    color: var(--ink);
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .quiz-option { background: #fff; }
+  .quiz-option.correct { background: #B8E6B0; }
+  .quiz-option.wrong { background: #F5B7B1; }
+
+  #settingsToggle {
+    display: block;
+    margin: 0 auto 16px;
+    background: none;
+    border: none;
+    color: #6b6280;
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  #settingsPanel { display: none; }
+  #settingsPanel.open { display: block; }
+  #settingsPanel label {
+    display: block;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  #settingsPanel input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  #settingsPanel .warn {
+    font-size: 12px;
+    color: #a15c00;
+    background: #FFF3D6;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🧸 Jouet de langues</h1>
+<p class="subtitle">Parle en français, apprends en t'amusant</p>
+
+<button id="settingsToggle" onclick="toggleSettings()">⚙️ Réglages (clé API)</button>
+<div class="card" id="settingsPanel">
+  <label for="apiKeyInput">Clé API Ark (火山方舟)</label>
+  <input id="apiKeyInput" type="password" placeholder="Colle ta clé ici">
+  <label for="modelInput">Modèle / Endpoint Ark</label>
+  <input id="modelInput" type="text" placeholder="ex: doubao-seed-1-6-251015 ou ep-xxxxx">
+  <div class="warn">⚠️ Cette clé reste uniquement sur ce téléphone (stockage local du
+  navigateur). Ne partage jamais ce lien avec la clé déjà remplie, et ne mets pas
+  cette page sur un dépôt public avec la clé en dur dans le code.</div>
+</div>
+
+<div class="card">
+  <div class="lang-row">
+    <button class="pill" data-lang="zh" onclick="setLanguage('zh')">中文 Chinois</button>
+    <button class="pill" data-lang="ar" onclick="setLanguage('ar')">العربية Arabe</button>
+    <button class="pill" data-lang="en" onclick="setLanguage('en')">English Anglais</button>
+  </div>
+  <div class="mode-row">
+    <button class="pill" data-mode="translation" onclick="setMode('translation')">🔤 Traduction</button>
+    <button class="pill" data-mode="conversation" onclick="setMode('conversation')">💬 Conversation</button>
+    <button class="pill" data-mode="lesson" onclick="setMode('lesson')">📖 Leçon</button>
+  </div>
+
+  <div class="mic-zone" id="micZone">
+    <button id="micButton" onclick="toggleMic()">🎤</button>
+    <div class="mic-label" id="micLabel">Appuie et parle en français</div>
+  </div>
+
+  <button id="lessonButton" style="display:none" onclick="requestLesson()">Leçon suivante</button>
+</div>
+
+<div class="card">
+  <div class="status-box" id="statusBox">Choisis une langue et un mode pour commencer ✨</div>
+  <div id="quizContainer"></div>
+</div>
+
+<script>
+// ---------- État global ----------
+let targetLanguage = 'zh';
+let currentMode = 'translation';
+let recognition = null;
+let isRecording = false;
+let conversationHistory = []; // [{role, content}]
+let seenLessonWords = [];
+let currentLesson = null;
+
+const LANG_INFO = {
+  zh: { arkName: 'chinois (mandarin)', ttsLang: 'zh-CN', label: '中文' },
+  ar: { arkName: 'arabe standard',      ttsLang: 'ar-SA', label: 'العربية' },
+  en: { arkName: 'anglais',             ttsLang: 'en-US', label: 'English' }
+};
+
+// ---------- Réglages ----------
+function toggleSettings() {
+  document.getElementById('settingsPanel').classList.toggle('open');
+}
+function loadSettings() {
+  document.getElementById('apiKeyInput').value = localStorage.getItem('ark_api_key') || '';
+  document.getElementById('modelInput').value = localStorage.getItem('ark_model') || 'doubao-seed-1-6-251015';
+  document.getElementById('apiKeyInput').addEventListener('change', e => localStorage.setItem('ark_api_key', e.target.value));
+  document.getElementById('modelInput').addEventListener('change', e => localStorage.setItem('ark_model', e.target.value));
+}
+function getApiKey() { return localStorage.getItem('ark_api_key') || ''; }
+function getModel() { return localStorage.getItem('ark_model') || 'doubao-seed-1-6-251015'; }
+
+// ---------- Sélecteurs langue / mode ----------
+function setLanguage(lang) {
+  targetLanguage = lang;
+  document.querySelectorAll('.pill[data-lang]').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+}
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.pill[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('micZone').style.display = mode === 'lesson' ? 'none' : 'block';
+  document.getElementById('lessonButton').style.display = mode === 'lesson' ? 'block' : 'none';
+  document.getElementById('quizContainer').innerHTML = '';
+  conversationHistory = [];
+  const messages = {
+    translation: "Appuie sur le micro et dis une phrase en français 🎤",
+    conversation: "Parle en français, le tuteur va te répondre ! 💬",
+    lesson: "Appuie sur \"Leçon suivante\" pour commencer 📖"
+  };
+  setStatus(messages[mode]);
+}
+setLanguage('zh');
+setMode('translation');
+
+// ---------- Statut ----------
+function setStatus(html) {
+  document.getElementById('statusBox').innerHTML = html;
+}
+
+// ---------- Reconnaissance vocale (Web Speech API, gratuite, française) ----------
+function toggleMic() {
+  if (isRecording) { recognition && recognition.stop(); return; }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    setStatus("❌ Ce navigateur ne supporte pas la reconnaissance vocale.<br>Essaie avec Chrome sur Android.");
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'fr-FR';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    document.getElementById('micButton').classList.add('recording');
+    document.getElementById('micLabel').textContent = "Je t'écoute...";
+  };
+  recognition.onerror = (e) => {
+    setStatus(`❌ Erreur micro : ${e.error}`);
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    document.getElementById('micButton').classList.remove('recording');
+    document.getElementById('micLabel').textContent = "Appuie et parle en français";
+  };
+  recognition.onresult = (event) => {
+    const frenchText = event.results[0][0].transcript;
+    handleFrenchSpeech(frenchText);
+  };
+  recognition.start();
+}
+
+async function handleFrenchSpeech(frenchText) {
+  if (!getApiKey()) {
+    setStatus("⚠️ Ajoute d'abord ta clé API dans les Réglages (⚙️ en haut).");
+    return;
+  }
+  if (currentMode === 'translation') {
+    setStatus(`<span class="fr">"${frenchText}"</span><br>🌐 Traduction en cours...`);
+    const translated = await callArk(buildTranslatePrompt(), frenchText, []);
+    if (!translated) return;
+    setStatus(`<span class="fr">"${frenchText}"</span><br><span class="target">${translated}</span>`);
+    speak(translated);
+  } else if (currentMode === 'conversation') {
+    setStatus(`<span class="fr">Toi : "${frenchText}"</span><br>🤔 Le tuteur réfléchit...`);
+    const raw = await callArk(buildTutorPrompt(), frenchText, conversationHistory);
+    if (!raw) return;
+    try {
+      const clean = raw.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
+      const json = JSON.parse(clean);
+      conversationHistory.push({ role: 'user', content: frenchText });
+      conversationHistory.push({ role: 'assistant', content: json.target_reply });
+      if (conversationHistory.length > 12) conversationHistory.splice(0, 2);
+
+      let html = `<span class="fr">Toi : "${frenchText}"</span><br>` +
+                 `<span class="target">${json.target_reply}</span><br>` +
+                 `<span class="hint">(${json.french_hint})</span>`;
+      if (json.correction) html += `<br><span class="hint">💡 ${json.correction}</span>`;
+      setStatus(html);
+      speak(json.target_reply);
+    } catch (e) {
+      setStatus(`❌ Réponse inattendue du tuteur. Réessaie.`);
+    }
+  }
+}
+
+// ---------- Prompts ----------
+function buildTranslatePrompt() {
+  const info = LANG_INFO[targetLanguage];
+  return `Tu es un traducteur pour enfants. Traduis la phrase donnée du français vers le ${info.arkName}. ` +
+         `Réponds UNIQUEMENT avec la traduction, sans guillemets, sans explication, sans pinyin ni translittération.`;
+}
+function buildTutorPrompt() {
+  const info = LANG_INFO[targetLanguage];
+  return `Tu es un tuteur de langue patient et bienveillant pour un enfant qui apprend le ${info.arkName}. ` +
+    `L'enfant te parle en français, tu réponds dans un dialogue simple. Règles : ` +
+    `Réponds toujours par une phrase courte et simple en ${info.arkName} (target_reply). ` +
+    `Donne l'équivalent français de ta réponse (french_hint). ` +
+    `Si l'enfant a fait une erreur de grammaire ou de vocabulaire, corrige gentiment et brièvement dans "correction", sinon mets null. ` +
+    `Reste toujours encourageant, jamais moqueur. ` +
+    `Réponds UNIQUEMENT avec un JSON de cette forme, sans texte autour : ` +
+    `{"target_reply": "...", "french_hint": "...", "correction": "..." ou null}`;
+}
+function buildLessonPrompt() {
+  const info = LANG_INFO[targetLanguage];
+  return `Tu conçois des mini-leçons de ${info.arkName} pour un enfant francophone débutant. ` +
+    `Choisis un mot ou une courte expression du quotidien, différent de ceux déjà vus : ` +
+    `${seenLessonWords.join(', ') || '(aucun pour l\'instant)'}. Construis : ` +
+    `le mot/expression en ${info.arkName} (word), sa traduction française (translation), ` +
+    `une phrase d'exemple simple en ${info.arkName} (example_sentence), sa traduction française (example_translation), ` +
+    `une question de quiz en français (quiz_question), 3 options de réponse en français dont une seule correcte ` +
+    `(quiz_options, tableau de 3), l'index (0,1,2) de la bonne réponse (correct_answer_index). ` +
+    `Réponds UNIQUEMENT avec un JSON de cette forme, sans texte autour : ` +
+    `{"word":"...","translation":"...","example_sentence":"...","example_translation":"...",` +
+    `"quiz_question":"...","quiz_options":["...","...","..."],"correct_answer_index":0}`;
+}
+
+// ---------- Leçons ----------
+async function requestLesson() {
+  setStatus("🤔 Préparation de la leçon...");
+  document.getElementById('quizContainer').innerHTML = '';
+  const raw = await callArk(buildLessonPrompt(), "Génère la prochaine leçon.", []);
+  if (!raw) return;
+  try {
+    const clean = raw.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
+    currentLesson = JSON.parse(clean);
+    seenLessonWords.push(currentLesson.word);
+
+    setStatus(
+      `<span class="target">📖 ${currentLesson.word}</span> <span class="hint">(${currentLesson.translation})</span><br>` +
+      `<span class="fr">"${currentLesson.example_sentence}"</span><br>` +
+      `<span class="hint">${currentLesson.example_translation}</span><br><br>` +
+      `<b>${currentLesson.quiz_question}</b>`
+    );
+    speak(`${currentLesson.word}. ${currentLesson.example_sentence}`);
+
+    const container = document.getElementById('quizContainer');
+    currentLesson.quiz_options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-option';
+      btn.textContent = opt;
+      btn.onclick = () => submitQuizAnswer(idx);
+      container.appendChild(btn);
+    });
+  } catch (e) {
+    setStatus("❌ Réponse inattendue pour la leçon. Réessaie.");
+  }
+}
+function submitQuizAnswer(index) {
+  if (!currentLesson) return;
+  const buttons = document.querySelectorAll('.quiz-option');
+  buttons.forEach((btn, idx) => {
+    if (idx === currentLesson.correct_answer_index) btn.classList.add('correct');
+    else if (idx === index) btn.classList.add('wrong');
+    btn.onclick = null;
+  });
+}
+
+// ---------- Appel Ark Chat ----------
+async function callArk(systemPrompt, userMessage, history) {
+  const messages = [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userMessage }];
+  try {
+    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getApiKey()}`
+      },
+      body: JSON.stringify({ model: getModel(), messages, temperature: 0.3, max_tokens: 400 })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      setStatus(`❌ Erreur API (${response.status}). Vérifie ta clé dans les réglages.<br><span class="hint">${errText.slice(0,200)}</span>`);
+      return null;
+    }
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content?.trim() || null;
+  } catch (e) {
+    setStatus(`❌ Erreur réseau : ${e.message}<br><span class="hint">Si ça persiste, le serveur Ark bloque peut-être les appels directs depuis le navigateur (CORS) — vois le README.</span>`);
+    return null;
+  }
+}
+
+// ---------- Synthèse vocale (Web Speech API, gratuite) ----------
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = LANG_INFO[targetLanguage].ttsLang;
+  utterance.rate = 0.85;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+loadSettings();
+</script>
+</body>
+</html>
