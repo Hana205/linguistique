@@ -168,13 +168,18 @@
 
 <button id="settingsToggle" onclick="toggleSettings()">⚙️ Réglages (clé API)</button>
 <div class="card" id="settingsPanel">
+  <div id="envWarning" class="warn" style="display:none;margin-bottom:12px;"></div>
+  <label for="proxyInput">URL du proxy (recommandé)</label>
+  <input id="proxyInput" type="text" placeholder="ex: https://ton-proxy.workers.dev">
   <label for="apiKeyInput">Clé API Ark (火山方舟)</label>
   <input id="apiKeyInput" type="password" placeholder="Colle ta clé ici">
   <label for="modelInput">Modèle / Endpoint Ark</label>
   <input id="modelInput" type="text" placeholder="ex: doubao-seed-1-6-251015 ou ep-xxxxx">
-  <div class="warn">⚠️ Cette clé reste uniquement sur ce téléphone (stockage local du
-  navigateur). Ne partage jamais ce lien avec la clé déjà remplie, et ne mets pas
-  cette page sur un dépôt public avec la clé en dur dans le code.</div>
+  <div class="warn">⚠️ Si tu utilises un proxy (voir README), la clé API est stockée côté
+  serveur et le champ clé ci-dessus peut rester vide. Si tu n'utilises PAS de proxy, cette
+  clé reste uniquement sur cet appareil (stockage local du navigateur) mais transite en
+  clair dans le code de la page : ne partage jamais ce lien avec la clé déjà remplie, et
+  ne mets pas cette page sur un dépôt public avec la clé en dur dans le code.</div>
 </div>
 
 <div class="card">
@@ -225,11 +230,40 @@ function toggleSettings() {
 function loadSettings() {
   document.getElementById('apiKeyInput').value = localStorage.getItem('ark_api_key') || '';
   document.getElementById('modelInput').value = localStorage.getItem('ark_model') || 'doubao-seed-1-6-251015';
-  document.getElementById('apiKeyInput').addEventListener('change', e => localStorage.setItem('ark_api_key', e.target.value));
-  document.getElementById('modelInput').addEventListener('change', e => localStorage.setItem('ark_model', e.target.value));
+  document.getElementById('proxyInput').value = localStorage.getItem('ark_proxy_url') || '';
+  // 'input' se déclenche à chaque frappe (au lieu de 'change' qui attend la perte de
+  // focus, peu fiable sur certains claviers mobiles) -> sauvegarde immédiate.
+  document.getElementById('apiKeyInput').addEventListener('input', e => { localStorage.setItem('ark_api_key', e.target.value); checkEnvironment(); });
+  document.getElementById('modelInput').addEventListener('input', e => localStorage.setItem('ark_model', e.target.value));
+  document.getElementById('proxyInput').addEventListener('input', e => { localStorage.setItem('ark_proxy_url', e.target.value.trim()); checkEnvironment(); });
+  checkEnvironment();
 }
 function getApiKey() { return localStorage.getItem('ark_api_key') || ''; }
 function getModel() { return localStorage.getItem('ark_model') || 'doubao-seed-1-6-251015'; }
+function getProxyUrl() { return localStorage.getItem('ark_proxy_url') || ''; }
+
+// ---------- Vérification d'environnement ----------
+// file:// casse la persistance des permissions micro et parfois le stockage local,
+// et les appels directs à l'API Ark depuis un navigateur sont presque toujours
+// bloqués par CORS. On prévient l'utilisateur au lieu de le laisser deviner.
+function checkEnvironment() {
+  const warnBox = document.getElementById('envWarning');
+  const problems = [];
+  if (location.protocol === 'file:') {
+    problems.push("Cette page est ouverte en fichier local (file://). Le micro et la sauvegarde de la clé peuvent ne pas fonctionner de façon fiable. Héberge la page en HTTPS (voir README) ou teste via un serveur local (http://localhost).");
+  } else if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    problems.push("Cette page n'est pas en HTTPS. Le micro risque de ne pas fonctionner sur mobile.");
+  }
+  if (!getProxyUrl()) {
+    problems.push("Aucun proxy configuré : les appels iront directement au serveur Ark, ce qui échoue généralement à cause de CORS (bloqué par le navigateur). Configure un proxy (voir README) pour que Leçon et Conversation fonctionnent.");
+  }
+  if (problems.length) {
+    warnBox.style.display = 'block';
+    warnBox.innerHTML = '⚠️ ' + problems.join('<br>⚠️ ');
+  } else {
+    warnBox.style.display = 'none';
+  }
+}
 
 // ---------- Sélecteurs langue / mode ----------
 function setLanguage(lang) {
@@ -259,12 +293,25 @@ function setStatus(html) {
 }
 
 // ---------- Reconnaissance vocale (Web Speech API, gratuite, française) ----------
-function toggleMic() {
+async function toggleMic() {
   if (isRecording) { recognition && recognition.stop(); return; }
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     setStatus("❌ Ce navigateur ne supporte pas la reconnaissance vocale.<br>Essaie avec Chrome sur Android.");
+    return;
+  }
+  if (!window.isSecureContext) {
+    setStatus("❌ Le micro nécessite HTTPS (ou localhost).<br>Cette page est ouverte en " + location.protocol + " — héberge-la en HTTPS (voir README) pour que le micro fonctionne et que l'autorisation soit mémorisée.");
+    return;
+  }
+  // Demande explicite de la permission micro AVANT de lancer la reconnaissance :
+  // ça donne un message d'erreur clair si elle est refusée, plutôt qu'un échec silencieux.
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+  } catch (err) {
+    setStatus(`❌ Permission micro refusée ou indisponible (${err.name}).<br>Vérifie les autorisations du site dans les réglages du navigateur.`);
     return;
   }
   recognition = new SpeechRecognition();
@@ -293,8 +340,8 @@ function toggleMic() {
 }
 
 async function handleFrenchSpeech(frenchText) {
-  if (!getApiKey()) {
-    setStatus("⚠️ Ajoute d'abord ta clé API dans les Réglages (⚙️ en haut).");
+  if (!getApiKey() && !getProxyUrl()) {
+    setStatus("⚠️ Ajoute d'abord ta clé API (ou une URL de proxy) dans les Réglages (⚙️ en haut).");
     return;
   }
   if (currentMode === 'translation') {
@@ -401,24 +448,33 @@ function submitQuizAnswer(index) {
 // ---------- Appel Ark Chat ----------
 async function callArk(systemPrompt, userMessage, history) {
   const messages = [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userMessage }];
+  const proxyUrl = getProxyUrl();
+  // Avec un proxy : la clé reste côté serveur (voir worker.js du README), on n'envoie
+  // pas d'Authorization depuis le navigateur. Sans proxy : appel direct (ne marchera
+  // que si Ark autorise le CORS depuis ton origine, ce qui est rarement le cas).
+  const url = proxyUrl ? proxyUrl.replace(/\/$/, '') + '/chat/completions'
+                       : 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+  const headers = { 'Content-Type': 'application/json' };
+  if (!proxyUrl) headers['Authorization'] = `Bearer ${getApiKey()}`;
+
   try {
-    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getApiKey()}`
-      },
+      headers,
       body: JSON.stringify({ model: getModel(), messages, temperature: 0.3, max_tokens: 400 })
     });
     if (!response.ok) {
       const errText = await response.text();
-      setStatus(`❌ Erreur API (${response.status}). Vérifie ta clé dans les réglages.<br><span class="hint">${errText.slice(0,200)}</span>`);
+      setStatus(`❌ Erreur API (${response.status}). ${proxyUrl ? 'Vérifie ton proxy.' : 'Vérifie ta clé dans les réglages.'}<br><span class="hint">${errText.slice(0,200)}</span>`);
       return null;
     }
     const data = await response.json();
     return data.choices?.[0]?.message?.content?.trim() || null;
   } catch (e) {
-    setStatus(`❌ Erreur réseau : ${e.message}<br><span class="hint">Si ça persiste, le serveur Ark bloque peut-être les appels directs depuis le navigateur (CORS) — vois le README.</span>`);
+    const hint = proxyUrl
+      ? "Vérifie que l'URL du proxy est correcte et qu'il est bien déployé."
+      : "Le serveur Ark bloque très probablement les appels directs depuis le navigateur (CORS). Configure un proxy — voir README.";
+    setStatus(`❌ Erreur réseau : ${e.message}<br><span class="hint">${hint}</span>`);
     return null;
   }
 }
